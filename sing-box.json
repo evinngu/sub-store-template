@@ -119,9 +119,9 @@
         "outbound": "youtube"
       },
       {
-        "rule_set": "openai_domain",
+        "rule_set": "ai_domain",
         "action": "route",
-        "outbound": "openai"
+        "outbound": "ai"
       },
       {
         "type": "logical",
@@ -252,10 +252,10 @@
         "download_detour": "direct"
       },
       {
-        "tag": "openai_domain",
+        "tag": "ai_domain",
         "type": "remote",
         "format": "binary",
-        "url": "https://ghfast.top/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/refs/heads/sing/geo/geosite/openai.srs",
+        "url": "https://ghfast.top/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/refs/heads/sing/geo/geosite/category-ai-!cn.srs",
         "download_detour": "direct"
       },
       {
@@ -459,7 +459,7 @@
       "default": "proxy"
     },
     {
-      "tag": "openai",
+      "tag": "ai",
       "type": "selector",
       "outbounds": [
         "proxy",
