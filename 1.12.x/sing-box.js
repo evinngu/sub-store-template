@@ -34,6 +34,14 @@ config.outbounds.map(i => {
   if (['us', 'us-auto'].includes(i.tag)) {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i))
   }
+  if (i.tag === 'exit-common') {
+    const commonProxies = proxies.filter(p => /落地/i.test(p.tag) && p.type !== 'wireguard')
+    i.outbounds.push(...getTags(commonProxies))
+  }
+  if (i.tag === 'exit-warp') {
+    const warpProxies = proxies.filter(p => /落地/i.test(p.tag) && p.type === 'wireguard')
+    i.outbounds.push(...getTags(warpProxies))
+  }
 })
 
 config.outbounds.forEach(outbound => {
