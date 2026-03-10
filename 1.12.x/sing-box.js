@@ -36,10 +36,12 @@ config.outbounds.map(i => {
   }
   if (i.tag === 'exit-common') {
     const commonProxies = proxies.filter(p => /落地/i.test(p.tag) && p.type !== 'wireguard')
+    commonProxies.forEach(p => p.detour = 'relay-common')
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
     const warpProxies = proxies.filter(p => /落地/i.test(p.tag) && p.type === 'wireguard')
+    warpProxies.forEach(p => p.detour = 'relay-warp')
     i.outbounds.push(...getTags(warpProxies))
   }
 })
