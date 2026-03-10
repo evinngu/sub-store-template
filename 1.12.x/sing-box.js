@@ -13,6 +13,17 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
+proxies.forEach(p => {
+  if (p.type === 'wireguard' && p.server && p.server_port) {
+    p.endpoints = [{
+      address: p.server,
+      port: p.server_port
+    }]
+    delete p.server
+    delete p.server_port
+  }
+})
+
 config.outbounds.push(...proxies)
 
 config.outbounds.map(i => {
