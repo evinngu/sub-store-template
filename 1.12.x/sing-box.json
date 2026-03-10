@@ -683,6 +683,7 @@
       "type": "direct"
     }
   ],
+  "endpoints": [],
   "inbounds": [
     {
       "type": "tun",

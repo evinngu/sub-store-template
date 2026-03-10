@@ -13,18 +13,50 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
+if (!config.endpoints) {
+  config.endpoints = []
+}
+
+let regularProxies = []
+let endpointProxies = []
+
 proxies.forEach(p => {
-  if (p.type === 'wireguard' && p.server && p.server_port) {
-    p.endpoints = [{
-      address: p.server,
-      port: p.server_port
+  if (p.type === 'wireguard') {
+    let endpoint = { ...p }
+    // Migrate old outbound fields to the new peers array
+    endpoint.peers = [{
+      server: p.server,
+      server_port: p.server_port,
+      peer_public_key: p.peer_public_key,
+      pre_shared_key: p.pre_shared_key,
+      reserved: p.reserved,
+      allowed_ips: p.allowed_ips || ["0.0.0.0/0"]
     }]
-    delete p.server
-    delete p.server_port
+    if (endpoint.peers[0].server) {
+      endpoint.peers[0].address = endpoint.peers[0].server
+      delete endpoint.peers[0].server
+    }
+    if (endpoint.peers[0].server_port) {
+      endpoint.peers[0].port = endpoint.peers[0].server_port
+      delete endpoint.peers[0].server_port
+    }
+
+    delete endpoint.server
+    delete endpoint.server_port
+    delete endpoint.endpoints
+    delete endpoint.peer_public_key
+    delete endpoint.pre_shared_key
+    delete endpoint.reserved
+    delete endpoint.allowed_ips
+
+    endpointProxies.push(endpoint)
+  } else {
+    regularProxies.push(p)
   }
 })
 
-config.outbounds.push(...proxies)
+config.outbounds.push(...regularProxies)
+config.endpoints.push(...endpointProxies)
 
 config.outbounds.map(i => {
   if (['all', 'all-auto'].includes(i.tag)) {
