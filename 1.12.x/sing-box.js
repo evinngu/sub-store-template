@@ -21,45 +21,60 @@ let regularProxies = []
 let endpointProxies = []
 
 proxies.forEach(p => {
+  // Access global $proxies for unaltered properties lost during Sub-Store's produceArtifact
+  let rawProxy = typeof $proxies !== 'undefined' && Array.isArray($proxies) 
+    ? $proxies.find(r => r.name === p.tag) 
+    : null;
+  let src = rawProxy || p;
+
   if (p.type === 'wireguard') {
     let endpoint = { ...p }
+
+    // Assign detour directly to the endpoint BEFORE adding to array
+    if (/落地/i.test(p.tag)) {
+        endpoint.detour = 'relay-warp'
+        p.detour = 'relay-warp'
+    } else if (endpoint.detour) {
+        // Strip detour if incorrectly inherited from dialer-proxy but not a 落地 node
+        delete endpoint.detour
+    }
     
     // Combine ip and ipv6 into address array
     endpoint.address = []
-    if (p.ip) endpoint.address.push(p.ip)
-    if (p.ipv6) endpoint.address.push(p.ipv6)
-    // Handle Sub-Store local_address just in case
-    if (p.local_address && Array.isArray(p.local_address)) {
-        endpoint.address.push(...p.local_address)
+    if (src.ip) endpoint.address.push(src.ip)
+    if (src.ipv6) endpoint.address.push(src.ipv6)
+    if (src.local_address && Array.isArray(src.local_address)) {
+        endpoint.address.push(...src.local_address)
     }
 
     // Map private-key to private_key
-    if (p['private-key']) {
-        endpoint.private_key = p['private-key']
+    if (src['private-key']) {
+        endpoint.private_key = src['private-key']
     }
     
     // Construct peers array
     let peersConfig = []
-    if (p.peers && Array.isArray(p.peers)) {
-        p.peers.forEach(peer => {
+    let sourcePeers = src.peers || p.peers;
+    if (sourcePeers && Array.isArray(sourcePeers) && sourcePeers[0] && (sourcePeers[0].server || sourcePeers[0].address || sourcePeers[0].public_key || sourcePeers[0]['public-key'])) {
+        sourcePeers.forEach(peer => {
             peersConfig.push({
-                address: peer.server,
-                port: peer.port,
-                public_key: peer['public-key'] || peer.public_key,
-                pre_shared_key: peer['pre-shared-key'] || peer.pre_shared_key,
-                allowed_ips: peer['allowed-ips'] || peer.allowed_ips || ["0.0.0.0/0"],
-                reserved: peer.reserved
+                address: peer.server || peer.address || src.server || p.server,
+                port: peer.port || peer.server_port || src.port || src.server_port || p.port || p.server_port,
+                public_key: peer['public-key'] || peer.public_key || src.peer_public_key || p.peer_public_key,
+                pre_shared_key: peer['pre-shared-key'] || peer.pre_shared_key || src.pre_shared_key || p.pre_shared_key,
+                allowed_ips: peer['allowed-ips'] || peer.allowed_ips || src.allowed_ips || p.allowed_ips || ["0.0.0.0/0"],
+                reserved: peer.reserved || src.reserved || p.reserved
             })
         })
-    } else if (p.server && p.server_port) {
+    } else if (p.server || src.server) {
         // Fallback for older formats
         peersConfig.push({
-            address: p.server,
-            port: p.server_port,
-            public_key: p.peer_public_key || p['peer-public-key'],
-            pre_shared_key: p.pre_shared_key || p['pre-shared-key'],
-            allowed_ips: p.allowed_ips || p['allowed-ips'] || ["0.0.0.0/0"],
-            reserved: p.reserved
+            address: src.server || p.server,
+            port: src.server_port || src.port || p.server_port || p.port,
+            public_key: src.peer_public_key || src['peer-public-key'] || p.peer_public_key || p['peer-public-key'],
+            pre_shared_key: src.pre_shared_key || src['pre-shared-key'] || p.pre_shared_key || p['pre-shared-key'],
+            allowed_ips: src.allowed_ips || src['allowed-ips'] || p.allowed_ips || p['allowed-ips'] || ["0.0.0.0/0"],
+            reserved: src.reserved || p.reserved
         })
     }
     endpoint.peers = peersConfig
@@ -86,6 +101,13 @@ proxies.forEach(p => {
 
     endpointProxies.push(endpoint)
   } else {
+    // Other node types: assign detour early if it matches
+    if (/落地/i.test(p.tag)) {
+        p.detour = 'relay-common'
+    } else if (p.detour) {
+        // Strip out dialer-proxy mapped to detour on non-exit nodes
+        delete p.detour
+    }
     regularProxies.push(p)
   }
 })
@@ -114,12 +136,10 @@ config.outbounds.map(i => {
   }
   if (i.tag === 'exit-common') {
     const commonProxies = proxies.filter(p => /落地/i.test(p.tag) && p.type !== 'wireguard')
-    commonProxies.forEach(p => p.detour = 'relay-common')
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
     const warpProxies = proxies.filter(p => /落地/i.test(p.tag) && p.type === 'wireguard')
-    warpProxies.forEach(p => p.detour = 'relay-warp')
     i.outbounds.push(...getTags(warpProxies))
   }
 })
