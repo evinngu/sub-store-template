@@ -13,18 +13,6 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-let rawProxies = []
-try {
-  rawProxies = await produceArtifact({
-    name,
-    type: /^1$|col/i.test(type) ? 'collection' : 'subscription',
-    platform: 'clash',
-    produceType: 'internal',
-  })
-} catch (e) {
-  // Ignore
-}
-
 if (!config.endpoints) {
   config.endpoints = []
 }
@@ -33,89 +21,19 @@ let regularProxies = []
 let endpointProxies = []
 
 proxies.forEach(p => {
-  // Access rawProxies for unaltered properties lost during Sub-Store's produceArtifact
-  let rawProxy = rawProxies.find(r => r.name === p.tag) 
-  let src = rawProxy || p;
-
   if (p.type === 'wireguard') {
-    let endpoint = { ...p }
-
-    // Assign detour directly to the endpoint BEFORE adding to array
     if (/落地/i.test(p.tag)) {
-        endpoint.detour = 'relay-warp'
         p.detour = 'relay-warp'
-    } else if (endpoint.detour) {
-        // Strip detour if incorrectly inherited from dialer-proxy but not a 落地 node
-        delete endpoint.detour
+    } else if (p.detour && p.detour.includes('前置')) {
+        // Strip out wrong detours from dialer-proxy
+        delete p.detour
     }
-    
-    // Combine ip and ipv6 into address array
-    endpoint.address = []
-    if (src.ip) endpoint.address.push(src.ip)
-    if (src.ipv6) endpoint.address.push(src.ipv6)
-    if (src.local_address && Array.isArray(src.local_address)) {
-        endpoint.address.push(...src.local_address)
-    }
-
-    // Map private-key to private_key
-    if (src['private-key']) {
-        endpoint.private_key = src['private-key']
-    }
-    
-    // Construct peers array
-    let peersConfig = []
-    let sourcePeers = src.peers || p.peers;
-    if (sourcePeers && Array.isArray(sourcePeers) && sourcePeers[0] && (sourcePeers[0].server || sourcePeers[0].address || sourcePeers[0].public_key || sourcePeers[0]['public-key'])) {
-        sourcePeers.forEach(peer => {
-            peersConfig.push({
-                address: peer.server || peer.address || src.server || p.server,
-                port: peer.port || peer.server_port || src.port || src.server_port || p.port || p.server_port,
-                public_key: peer['public-key'] || peer.public_key || src.peer_public_key || p.peer_public_key,
-                pre_shared_key: peer['pre-shared-key'] || peer.pre_shared_key || src.pre_shared_key || p.pre_shared_key,
-                allowed_ips: peer['allowed-ips'] || peer.allowed_ips || src.allowed_ips || p.allowed_ips || ["0.0.0.0/0"],
-                reserved: peer.reserved || src.reserved || p.reserved
-            })
-        })
-    } else if (p.server || src.server) {
-        // Fallback for older formats
-        peersConfig.push({
-            address: src.server || p.server,
-            port: src.server_port || src.port || p.server_port || p.port,
-            public_key: src.peer_public_key || src['peer-public-key'] || p.peer_public_key || p['peer-public-key'],
-            pre_shared_key: src.pre_shared_key || src['pre-shared-key'] || p.pre_shared_key || p['pre-shared-key'],
-            allowed_ips: src.allowed_ips || src['allowed-ips'] || p.allowed_ips || p['allowed-ips'] || ["0.0.0.0/0"],
-            reserved: src.reserved || p.reserved
-        })
-    }
-    endpoint.peers = peersConfig
-
-    // Clean up Clash-specific and unnecessary fields
-    delete endpoint.ip
-    delete endpoint.ipv6
-    delete endpoint['private-key']
-    delete endpoint.udp
-    delete endpoint.dns
-    delete endpoint['dialer-proxy']
-    delete endpoint['remote-dns-resolve']
-    delete endpoint.server
-    delete endpoint.server_port
-    delete endpoint.endpoints // if it was there
-    delete endpoint.peer_public_key
-    delete endpoint['peer-public-key']
-    delete endpoint.pre_shared_key
-    delete endpoint['pre-shared-key']
-    delete endpoint.reserved
-    delete endpoint.allowed_ips
-    delete endpoint['allowed-ips']
-    delete endpoint.local_address
-
-    endpointProxies.push(endpoint)
+    endpointProxies.push(p)
   } else {
-    // Other node types: assign detour early if it matches
     if (/落地/i.test(p.tag)) {
         p.detour = 'relay-common'
-    } else if (p.detour) {
-        // Strip out dialer-proxy mapped to detour on non-exit nodes
+    } else if (p.detour && p.detour.includes('前置')) {
+        // Strip out wrong detours from dialer-proxy
         delete p.detour
     }
     regularProxies.push(p)
