@@ -667,16 +667,14 @@
       "type": "selector",
       "outbounds": [
         "direct"
-      ],
-      "detour": "relay-common"
+      ]
     },
     {
       "tag": "exit-warp",
       "type": "selector",
       "outbounds": [
         "direct"
-      ],
-      "detour": "relay-warp"
+      ]
     },
     {
       "tag": "direct",

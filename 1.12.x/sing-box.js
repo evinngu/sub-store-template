@@ -23,31 +23,66 @@ let endpointProxies = []
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
     let endpoint = { ...p }
-    // Migrate old outbound fields to the new peers array
-    endpoint.peers = [{
-      server: p.server,
-      server_port: p.server_port,
-      peer_public_key: p.peer_public_key,
-      pre_shared_key: p.pre_shared_key,
-      reserved: p.reserved,
-      allowed_ips: p.allowed_ips || ["0.0.0.0/0"]
-    }]
-    if (endpoint.peers[0].server) {
-      endpoint.peers[0].address = endpoint.peers[0].server
-      delete endpoint.peers[0].server
-    }
-    if (endpoint.peers[0].server_port) {
-      endpoint.peers[0].port = endpoint.peers[0].server_port
-      delete endpoint.peers[0].server_port
+    
+    // Combine ip and ipv6 into address array
+    endpoint.address = []
+    if (p.ip) endpoint.address.push(p.ip)
+    if (p.ipv6) endpoint.address.push(p.ipv6)
+    // Handle Sub-Store local_address just in case
+    if (p.local_address && Array.isArray(p.local_address)) {
+        endpoint.address.push(...p.local_address)
     }
 
+    // Map private-key to private_key
+    if (p['private-key']) {
+        endpoint.private_key = p['private-key']
+    }
+    
+    // Construct peers array
+    let peersConfig = []
+    if (p.peers && Array.isArray(p.peers)) {
+        p.peers.forEach(peer => {
+            peersConfig.push({
+                address: peer.server,
+                port: peer.port,
+                public_key: peer['public-key'] || peer.public_key,
+                pre_shared_key: peer['pre-shared-key'] || peer.pre_shared_key,
+                allowed_ips: peer['allowed-ips'] || peer.allowed_ips || ["0.0.0.0/0"],
+                reserved: peer.reserved
+            })
+        })
+    } else if (p.server && p.server_port) {
+        // Fallback for older formats
+        peersConfig.push({
+            address: p.server,
+            port: p.server_port,
+            public_key: p.peer_public_key || p['peer-public-key'],
+            pre_shared_key: p.pre_shared_key || p['pre-shared-key'],
+            allowed_ips: p.allowed_ips || p['allowed-ips'] || ["0.0.0.0/0"],
+            reserved: p.reserved
+        })
+    }
+    endpoint.peers = peersConfig
+
+    // Clean up Clash-specific and unnecessary fields
+    delete endpoint.ip
+    delete endpoint.ipv6
+    delete endpoint['private-key']
+    delete endpoint.udp
+    delete endpoint.dns
+    delete endpoint['dialer-proxy']
+    delete endpoint['remote-dns-resolve']
     delete endpoint.server
     delete endpoint.server_port
-    delete endpoint.endpoints
+    delete endpoint.endpoints // if it was there
     delete endpoint.peer_public_key
+    delete endpoint['peer-public-key']
     delete endpoint.pre_shared_key
+    delete endpoint['pre-shared-key']
     delete endpoint.reserved
     delete endpoint.allowed_ips
+    delete endpoint['allowed-ips']
+    delete endpoint.local_address
 
     endpointProxies.push(endpoint)
   } else {
