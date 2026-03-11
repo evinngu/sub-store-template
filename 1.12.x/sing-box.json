@@ -314,6 +314,60 @@
       "default": "all-auto"
     },
     {
+      "tag": "relay-common",
+      "type": "selector",
+      "outbounds": [
+        "hk",
+        "hk-auto",
+        "tw",
+        "tw-auto",
+        "jp",
+        "jp-auto",
+        "sg",
+        "sg-auto",
+        "us",
+        "us-auto",
+        "all",
+        "all-auto",
+        "direct"
+      ],
+      "default": "all-auto"
+    },
+    {
+      "tag": "exit-common",
+      "type": "selector",
+      "outbounds": [
+        "direct"
+      ]
+    },
+    {
+      "tag": "relay-warp",
+      "type": "selector",
+      "outbounds": [
+        "hk",
+        "hk-auto",
+        "tw",
+        "tw-auto",
+        "jp",
+        "jp-auto",
+        "sg",
+        "sg-auto",
+        "us",
+        "us-auto",
+        "all",
+        "all-auto",
+        "direct"
+      ],
+      "default": "all-auto"
+    },
+    {
+      "tag": "exit-warp",
+      "type": "selector",
+      "outbounds": [
+        "direct"
+      ]
+    },
+    {
       "tag": "google",
       "type": "selector",
       "outbounds": [
@@ -621,60 +675,6 @@
         "all-auto"
       ],
       "default": "direct"
-    },
-    {
-      "tag": "relay-common",
-      "type": "selector",
-      "outbounds": [
-        "hk",
-        "hk-auto",
-        "tw",
-        "tw-auto",
-        "jp",
-        "jp-auto",
-        "sg",
-        "sg-auto",
-        "us",
-        "us-auto",
-        "all",
-        "all-auto",
-        "direct"
-      ],
-      "default": "all-auto"
-    },
-    {
-      "tag": "relay-warp",
-      "type": "selector",
-      "outbounds": [
-        "hk",
-        "hk-auto",
-        "tw",
-        "tw-auto",
-        "jp",
-        "jp-auto",
-        "sg",
-        "sg-auto",
-        "us",
-        "us-auto",
-        "all",
-        "all-auto",
-        "direct"
-      ],
-      "default": "all-auto"
-    },
-    {
-      "tag": "exit-common",
-      "type": "selector",
-      "outbounds": [
-        "direct"
-      ]
-    },
-    {
-      "tag": "exit-warp",
-      "type": "selector",
-      "outbounds": [
-        "direct"
-      ]
     },
     {
       "tag": "direct",
