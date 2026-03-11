@@ -13,6 +13,18 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
+let rawProxies = []
+try {
+  rawProxies = await produceArtifact({
+    name,
+    type: /^1$|col/i.test(type) ? 'collection' : 'subscription',
+    platform: 'clash',
+    produceType: 'internal',
+  })
+} catch (e) {
+  // Ignore
+}
+
 if (!config.endpoints) {
   config.endpoints = []
 }
@@ -21,10 +33,8 @@ let regularProxies = []
 let endpointProxies = []
 
 proxies.forEach(p => {
-  // Access global $proxies for unaltered properties lost during Sub-Store's produceArtifact
-  let rawProxy = typeof $proxies !== 'undefined' && Array.isArray($proxies) 
-    ? $proxies.find(r => r.name === p.tag) 
-    : null;
+  // Access rawProxies for unaltered properties lost during Sub-Store's produceArtifact
+  let rawProxy = rawProxies.find(r => r.name === p.tag) 
   let src = rawProxy || p;
 
   if (p.type === 'wireguard') {
