@@ -51,7 +51,7 @@ proxies.forEach(p => {
   if (p.type === 'wireguard') {
     let ifaceName = "wg-" + Math.random().toString(36).substring(2, 6);
     let endpoint = {
-      tag: p.tag,
+      tag: p.tag + "-ep",
       type: "wireguard",
       system: true,
       name: ifaceName
