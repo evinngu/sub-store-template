@@ -22,14 +22,30 @@ let endpointProxies = []
 
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
+    // 1. Ensure the endpoint creates a real system interface
+    p.system = true;
+    // Sanitize interface name (e.g., wg-WARP-1). Keep it short if possible.
+    let ifaceName = "wg-" + Math.random().toString(36).substring(2, 6);
+    p.name = ifaceName;
+    
+    // We don't put detour on the endpoint itself, because the endpoint is just a network device
+    // Instead, we put it on the phantom outbound.
+    if (p.detour) delete p.detour;
+    endpointProxies.push(p);
+
+    // 2. Create a phantom Direct outbound that binds to this WireGuard interface
+    let phantomOutbound = {
+      tag: p.tag,
+      type: "direct",
+      bind_interface: ifaceName
+    };
+    
     if (/落地/i.test(p.tag)) {
-        p.detour = 'relay-warp'
-    } else if (p.detour && p.detour.includes('前置')) {
-        // Strip out wrong detours from dialer-proxy
-        delete p.detour
+        phantomOutbound.detour = 'relay-warp';
     }
-    endpointProxies.push(p)
+    regularProxies.push(phantomOutbound);
   } else {
+    // Other node types (e.g. socks5)
     if (/落地/i.test(p.tag)) {
         p.detour = 'relay-common'
     } else if (p.detour && p.detour.includes('前置')) {
@@ -63,11 +79,11 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i))
   }
   if (i.tag === 'exit-common') {
-    const commonProxies = proxies.filter(p => /落地/i.test(p.tag) && p.type !== 'wireguard')
+    const commonProxies = regularProxies.filter(p => /落地/i.test(p.tag) && p.detour === 'relay-common')
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    const warpProxies = proxies.filter(p => /落地/i.test(p.tag) && p.type === 'wireguard')
+    const warpProxies = regularProxies.filter(p => /落地/i.test(p.tag) && p.detour === 'relay-warp')
     i.outbounds.push(...getTags(warpProxies))
   }
 })
