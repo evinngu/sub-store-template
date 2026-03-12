@@ -129,6 +129,14 @@ proxies.forEach(p => {
   }
 })
 
+// Filter out buggy natively-converted wireguard outbounds and endpoints injected by Sub-Store
+config.outbounds = config.outbounds.filter(ob => ob.type !== 'wireguard')
+if (config.endpoints) {
+  config.endpoints = config.endpoints.filter(ep => ep.type !== 'wireguard')
+} else {
+  config.endpoints = []
+}
+
 config.outbounds.push(...regularProxies)
 config.endpoints.push(...endpointProxies)
 
