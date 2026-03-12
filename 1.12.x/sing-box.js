@@ -140,6 +140,13 @@ proxies.forEach(p => {
   }
 })
 
+if (rawProxies.length === 0 && debugError !== "") {
+    regularProxies.push({
+        tag: `DEBUG_ERR: ${debugError}`,
+        type: "direct"
+    })
+}
+
 // Filter out buggy natively-converted wireguard outbounds and endpoints injected by Sub-Store
 config.outbounds = config.outbounds.filter(ob => ob.type !== 'wireguard')
 if (config.endpoints) {
