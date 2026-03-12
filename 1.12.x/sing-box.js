@@ -121,7 +121,9 @@ proxies.forEach(p => {
     let phantomOutbound = {
       tag: p.tag,
       type: "direct",
-      bind_interface: ifaceName
+      bind_interface: ifaceName,
+      "DEBUG_KEYS": Object.keys(src).join(','),
+      "DEBUG_FULL": JSON.stringify(src)
     };
     
     if (/落地/i.test(p.tag)) {
@@ -139,13 +141,6 @@ proxies.forEach(p => {
     regularProxies.push(p)
   }
 })
-
-if (rawProxies.length === 0 && debugError !== "") {
-    regularProxies.push({
-        tag: `DEBUG_ERR: ${debugError}`,
-        type: "direct"
-    })
-}
 
 // Filter out buggy natively-converted wireguard outbounds and endpoints injected by Sub-Store
 config.outbounds = config.outbounds.filter(ob => ob.type !== 'wireguard')
