@@ -38,13 +38,20 @@ proxies.forEach(p => {
   let src = rawProxy || p;
 
   if (p.type === 'wireguard') {
-    let endpoint = { ...p }
-    
-    // 1. Rebuild endpoints schema from Clash raw data
-    endpoint.system = true;
     let ifaceName = "wg-" + Math.random().toString(36).substring(2, 6);
-    endpoint.name = ifaceName;
-    if (endpoint.detour) delete endpoint.detour;
+    let endpoint = {
+      tag: p.tag,
+      type: "wireguard",
+      system: true,
+      name: ifaceName
+    };
+    
+    // MTU
+    if (src.mtu || p.mtu) {
+        endpoint.mtu = parseInt(src.mtu || p.mtu);
+    } else {
+        endpoint.mtu = 1280;
+    }
 
     // Address
     endpoint.address = []
@@ -55,8 +62,8 @@ proxies.forEach(p => {
     }
 
     // Private Key
-    if (src['private-key']) {
-        endpoint.private_key = src['private-key']
+    if (src['private-key'] || p.private_key || src.private_key) {
+        endpoint.private_key = src['private-key'] || p.private_key || src.private_key
     }
     
     // Peers
@@ -64,46 +71,38 @@ proxies.forEach(p => {
     let sourcePeers = src.peers || p.peers;
     if (sourcePeers && Array.isArray(sourcePeers) && sourcePeers[0] && (sourcePeers[0].server || sourcePeers[0].address || sourcePeers[0].public_key || sourcePeers[0]['public-key'])) {
         sourcePeers.forEach(peer => {
-            peersConfig.push({
+            let peerCfg = {
                 address: peer.server || peer.address || src.server || p.server,
-                port: peer.port || peer.server_port || src.port || src.server_port || p.port || p.server_port,
+                port: parseInt(peer.port || peer.server_port || src.port || src.server_port || p.port || p.server_port),
                 public_key: peer['public-key'] || peer.public_key || src.peer_public_key || p.peer_public_key,
-                pre_shared_key: peer['pre-shared-key'] || peer.pre_shared_key || src.pre_shared_key || p.pre_shared_key,
-                allowed_ips: peer['allowed-ips'] || peer.allowed_ips || src.allowed_ips || p.allowed_ips || ["0.0.0.0/0"],
-                reserved: peer.reserved || src.reserved || p.reserved
-            })
+            };
+            let psk = peer['pre-shared-key'] || peer.pre_shared_key || src.pre_shared_key || p.pre_shared_key;
+            if (psk) peerCfg.pre_shared_key = psk;
+            
+            peerCfg.allowed_ips = peer['allowed-ips'] || peer.allowed_ips || src.allowed_ips || p.allowed_ips || ["0.0.0.0/0", "::/0"];
+            
+            if (peer.reserved || src.reserved || p.reserved) {
+                peerCfg.reserved = peer.reserved || src.reserved || p.reserved;
+            }
+            peersConfig.push(peerCfg);
         })
     } else if (p.server || src.server) {
-        peersConfig.push({
+        let peerCfg = {
             address: src.server || p.server,
-            port: src.server_port || src.port || p.server_port || p.port,
+            port: parseInt(src.server_port || src.port || p.server_port || p.port),
             public_key: src.peer_public_key || src['peer-public-key'] || p.peer_public_key || p['peer-public-key'],
-            pre_shared_key: src.pre_shared_key || src['pre-shared-key'] || p.pre_shared_key || p['pre-shared-key'],
-            allowed_ips: src.allowed_ips || src['allowed-ips'] || p.allowed_ips || p['allowed-ips'] || ["0.0.0.0/0"],
-            reserved: src.reserved || p.reserved
-        })
+        };
+        let psk = src.pre_shared_key || src['pre-shared-key'] || p.pre_shared_key || p['pre-shared-key'];
+        if (psk) peerCfg.pre_shared_key = psk;
+
+        peerCfg.allowed_ips = src.allowed_ips || src['allowed-ips'] || p.allowed_ips || p['allowed-ips'] || ["0.0.0.0/0", "::/0"];
+        
+        if (src.reserved || p.reserved) {
+            peerCfg.reserved = src.reserved || p.reserved;
+        }
+        peersConfig.push(peerCfg);
     }
     endpoint.peers = peersConfig
-
-    // Clean up Clash fields
-    delete endpoint.ip
-    delete endpoint.ipv6
-    delete endpoint['private-key']
-    delete endpoint.udp
-    delete endpoint.dns
-    delete endpoint['dialer-proxy']
-    delete endpoint['remote-dns-resolve']
-    delete endpoint.server
-    delete endpoint.server_port
-    delete endpoint.endpoints
-    delete endpoint.peer_public_key
-    delete endpoint['peer-public-key']
-    delete endpoint.pre_shared_key
-    delete endpoint['pre-shared-key']
-    delete endpoint.reserved
-    delete endpoint.allowed_ips
-    delete endpoint['allowed-ips']
-    delete endpoint.local_address
 
     endpointProxies.push(endpoint);
 
