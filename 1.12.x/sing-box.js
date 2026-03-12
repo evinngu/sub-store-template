@@ -14,15 +14,26 @@ let proxies = await produceArtifact({
 })
 
 let rawProxies = []
+let debugError = ""
 try {
   rawProxies = await produceArtifact({
     name,
     type: /^1$|col/i.test(type) ? 'collection' : 'subscription',
-    platform: 'clash',
+    platform: 'source',
     produceType: 'internal',
   })
 } catch (e) {
-  // Ignore
+  debugError = String(e)
+  try {
+    rawProxies = await produceArtifact({
+      name,
+      type: /^1$|col/i.test(type) ? 'collection' : 'subscription',
+      platform: 'ClashMeta',
+      produceType: 'internal',
+    })
+  } catch (e2) {
+      debugError += " | " + String(e2)
+  }
 }
 
 if (!config.endpoints) {
