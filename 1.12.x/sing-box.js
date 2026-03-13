@@ -60,22 +60,22 @@ config.outbounds = config.outbounds.filter(ob => ob.type !== 'wireguard')
 
 config.outbounds.map(i => {
   if (['all', 'all-auto'].includes(i.tag)) {
-    i.outbounds.push(...getTags(proxies))
+    i.outbounds.push(...getTags(proxies, null, true))
   }
   if (['hk', 'hk-auto'].includes(i.tag)) {
-    i.outbounds.push(...getTags(proxies, /港|hk|hongkong|hong kong|🇭🇰/i))
+    i.outbounds.push(...getTags(proxies, /港|hk|hongkong|hong kong|🇭🇰/i, true))
   }
   if (['tw', 'tw-auto'].includes(i.tag)) {
-    i.outbounds.push(...getTags(proxies, /台|tw|taiwan|🇹🇼/i))
+    i.outbounds.push(...getTags(proxies, /台|tw|taiwan|🇹🇼/i, true))
   }
   if (['jp', 'jp-auto'].includes(i.tag)) {
-    i.outbounds.push(...getTags(proxies, /日本|jp|japan|🇯🇵/i))
+    i.outbounds.push(...getTags(proxies, /日本|jp|japan|🇯🇵/i, true))
   }
   if (['sg', 'sg-auto'].includes(i.tag)) {
-    i.outbounds.push(...getTags(proxies, /^(?!.*(?:us)).*(新|sg|singapore|🇸🇬)/i))
+    i.outbounds.push(...getTags(proxies, /^(?!.*(?:us)).*(新|sg|singapore|🇸🇬)/i, true))
   }
   if (['us', 'us-auto'].includes(i.tag)) {
-    i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i))
+    i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i, true))
   }
   if (i.tag === 'exit-common') {
     const commonProxies = config.outbounds.filter(p => p.type !== 'direct' && /落地/i.test(p.tag))
@@ -102,6 +102,10 @@ config.outbounds.forEach(outbound => {
 
 $content = JSON.stringify(config, null, 2)
 
-function getTags(proxies, regex) {
-  return (regex ? proxies.filter(p => regex.test(p.tag)) : proxies).map(p => p.tag)
+function getTags(proxies, regex, excludeLanding = false) {
+  let filtered = regex ? proxies.filter(p => regex.test(p.tag)) : proxies;
+  if (excludeLanding) {
+    filtered = filtered.filter(p => !/落地/i.test(p.tag));
+  }
+  return filtered.map(p => p.tag);
 }
