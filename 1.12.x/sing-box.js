@@ -13,30 +13,48 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-// 1. Process and Distribute Proxies
+// 1. Distribute proxies into outbounds and endpoints
 proxies.forEach(p => {
-  // Ensure internal stack for WireGuard to avoid naming/kernel issues on iOS
   if (p.type === 'wireguard') {
-    delete p.system;
+    if (!config.endpoints) config.endpoints = [];
+    p.tag = p.tag + "-ep"; // Rename endpoint to avoid collision with phantom outbound
+    delete p.system; // Internal stack for iOS compatibility
+    // WARP needs a detour to the relay group to connect in restricted networks
+    p.detour = "relay-warp"; 
+    config.endpoints.push(p);
+  } else {
+    // Normal landing nodes detour to relay-common (already confirmed working)
+    if (/落地/i.test(p.tag)) {
+        p.detour = 'relay-common';
+    } else if (p.detour && p.detour.includes('前置')) {
+        delete p.detour;
+    }
+    config.outbounds.push(p);
   }
-  
-  // Enforce detours for "落地" nodes based on their type
-  if (/落地/i.test(p.tag)) {
-    p.detour = (p.type === 'wireguard') ? 'relay-warp' : 'relay-common';
-  } else if (p.detour && p.detour.includes('前置')) {
-    // Cleanup incorrect detours from upstream
-    delete p.detour;
-  }
-  
-  config.outbounds.push(p);
 })
 
-// 2. Clear native endpoints (not needed for this simplified 1:1 setup)
-config.endpoints = [];
+// 2. Inject phantom routing outbounds for WireGuard UI visibility
+if (config.endpoints) {
+  let phantomOutbounds = []
+  config.endpoints.forEach(ep => {
+    if (ep.type === 'wireguard') {
+      if (!ep.name) {
+        ep.name = "wg" + Math.floor(Math.random() * 9000 + 1000);
+      }
+      let phantomOutbound = {
+        tag: ep.tag.replace(/-ep$/, ""),
+        type: "direct",
+        bind_interface: ep.name
+      };
+      phantomOutbounds.push(phantomOutbound);
+    }
+  })
+  config.outbounds.push(...phantomOutbounds)
+}
 
 // 3. Populate Selector Groups
-// Break circular dependency: Relay groups (all, hk...) exclude landing nodes.
 config.outbounds.map(i => {
+  // Relay Groups: Standard groups only contain relay nodes (non-landing) to break loops
   if (['all', 'all-auto'].includes(i.tag)) {
     i.outbounds.push(...getTags(proxies, null, true))
   }
@@ -56,15 +74,24 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i, true))
   }
   
-  // Specific Exit Groups
+  // Processing Exit Groups
   if (i.tag === 'exit-common') {
-    // non-wireguard landing nodes
-    const commonProxies = config.outbounds.filter(p => p.type !== 'wireguard' && p.type !== 'selector' && p.type !== 'urltest' && p.type !== 'direct' && /落地/i.test(p.tag))
+    // Collect non-wireguard landing nodes from outbounds
+    const commonProxies = config.outbounds.filter(p => 
+      p.type !== 'direct' && 
+      p.type !== 'selector' && 
+      p.type !== 'urltest' && 
+      /落地/i.test(p.tag)
+    )
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    // wireguard landing nodes
-    const warpProxies = config.outbounds.filter(p => p.type === 'wireguard' && /落地/i.test(p.tag))
+    // Collect phantom 'direct' outbounds representing WARP
+    const warpProxies = config.outbounds.filter(p => 
+      p.type === 'direct' && 
+      /落地/i.test(p.tag) && 
+      p.bind_interface
+    )
     i.outbounds.push(...getTags(warpProxies))
   }
 })
