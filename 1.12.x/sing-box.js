@@ -41,7 +41,6 @@ if (config.endpoints) {
       if (!ep.name) {
         ep.name = "wg" + Math.floor(Math.random() * 9000 + 1000);
       }
-      ep.system = true;
 
       let phantomOutbound = {
         tag: ep.tag.replace(/-ep$/, ""),
