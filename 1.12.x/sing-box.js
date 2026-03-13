@@ -45,7 +45,7 @@ if (config.endpoints) {
         ep.name = "wg-" + Math.random().toString(36).substring(2, 6);
       }
       ep.system = true;
-      if (ep.detour) delete ep.detour; // detour goes strictly on outbounds
+      ep.system = true;
 
       // Create a phantom Direct outbound that binds to this WireGuard interface
       // Use original tag (without -ep) for UI selection
@@ -56,7 +56,9 @@ if (config.endpoints) {
       };
       
       if (/落地/i.test(phantomOutbound.tag)) {
-          phantomOutbound.detour = 'relay-warp';
+          ep.detour = 'relay-warp';
+          // Add a temporary marker for selector filtering
+          phantomOutbound._detour = 'relay-warp';
       }
       phantomOutbounds.push(phantomOutbound);
     }
@@ -91,10 +93,13 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    const warpProxies = config.outbounds.filter(p => p.type === 'direct' && /落地/i.test(p.tag) && p.detour === 'relay-warp')
+    const warpProxies = config.outbounds.filter(p => p.type === 'direct' && /落地/i.test(p.tag) && p._detour === 'relay-warp')
     i.outbounds.push(...getTags(warpProxies))
   }
 })
+
+// Cleanup internal markers
+config.outbounds.forEach(p => { if (p._detour) delete p._detour });
 
 config.outbounds.forEach(outbound => {
   if (Array.isArray(outbound.outbounds) && outbound.outbounds.length === 0) {
