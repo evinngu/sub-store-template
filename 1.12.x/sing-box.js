@@ -13,145 +13,47 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-let rawProxies = []
-let debugError = ""
-try {
-  rawProxies = await produceArtifact({
-    name,
-    type: /^1$|col/i.test(type) ? 'collection' : 'subscription',
-    platform: 'source',
-    produceType: 'internal',
-  })
-} catch (e) {
-  debugError = String(e)
-  try {
-    rawProxies = await produceArtifact({
-      name,
-      type: /^1$|col/i.test(type) ? 'collection' : 'subscription',
-      platform: 'ClashMeta',
-      produceType: 'internal',
-    })
-  } catch (e2) {
-      debugError += " | " + String(e2)
-  }
-}
-
-if (!config.endpoints) {
-  config.endpoints = []
-}
-
-let regularProxies = []
-let endpointProxies = []
-
-proxies.forEach(p => {
-  // Access rawProxies for unaltered properties lost during Sub-Store's produceArtifact
-  let rawProxy = rawProxies.find(r => r.name === p.tag) 
-  let src = rawProxy || p;
-
-  if (p.type === 'wireguard') {
-    let ifaceName = "wg-" + Math.random().toString(36).substring(2, 6);
-    let endpoint = {
-      tag: p.tag + "-ep",
-      type: "wireguard",
-      system: true,
-      name: ifaceName
-    };
-    
-    // MTU
-    if (src.mtu || p.mtu) {
-        endpoint.mtu = parseInt(src.mtu || p.mtu);
-    } else {
-        endpoint.mtu = 1280;
-    }
-
-    // Address
-    endpoint.address = []
-    if (src.ip) endpoint.address.push(src.ip)
-    if (src.ipv6) endpoint.address.push(src.ipv6)
-    if (src.local_address && Array.isArray(src.local_address)) {
-        endpoint.address.push(...src.local_address)
-    }
-
-    // Private Key
-    if (src['private-key'] || p.private_key || src.private_key) {
-        endpoint.private_key = src['private-key'] || p.private_key || src.private_key
-    }
-    
-    // Peers
-    let peersConfig = []
-    let sourcePeers = src.peers || p.peers;
-    if (sourcePeers && Array.isArray(sourcePeers) && sourcePeers[0] && (sourcePeers[0].server || sourcePeers[0].address || sourcePeers[0].public_key || sourcePeers[0]['public-key'])) {
-        sourcePeers.forEach(peer => {
-            let peerCfg = {
-                address: peer.server || peer.address || src.server || p.server,
-                port: parseInt(peer.port || peer.server_port || src.port || src.server_port || p.port || p.server_port),
-                public_key: peer['public-key'] || peer.public_key || src.peer_public_key || p.peer_public_key,
-            };
-            let psk = peer['pre-shared-key'] || peer.pre_shared_key || src.pre_shared_key || p.pre_shared_key;
-            if (psk) peerCfg.pre_shared_key = psk;
-            
-            peerCfg.allowed_ips = peer['allowed-ips'] || peer.allowed_ips || src.allowed_ips || p.allowed_ips || ["0.0.0.0/0", "::/0"];
-            
-            if (peer.reserved || src.reserved || p.reserved) {
-                peerCfg.reserved = peer.reserved || src.reserved || p.reserved;
-            }
-            peersConfig.push(peerCfg);
-        })
-    } else if (p.server || src.server) {
-        let peerCfg = {
-            address: src.server || p.server,
-            port: parseInt(src.server_port || src.port || p.server_port || p.port),
-            public_key: src.peer_public_key || src['peer-public-key'] || p.peer_public_key || p['peer-public-key'],
-        };
-        let psk = src.pre_shared_key || src['pre-shared-key'] || p.pre_shared_key || p['pre-shared-key'];
-        if (psk) peerCfg.pre_shared_key = psk;
-
-        peerCfg.allowed_ips = src.allowed_ips || src['allowed-ips'] || p.allowed_ips || p['allowed-ips'] || ["0.0.0.0/0", "::/0"];
-        
-        if (src.reserved || p.reserved) {
-            peerCfg.reserved = src.reserved || p.reserved;
-        }
-        peersConfig.push(peerCfg);
-    }
-    endpoint.peers = peersConfig
-
-    endpointProxies.push(endpoint);
-
-    // 2. Create Phantom Direct Outbound
-    let phantomOutbound = {
-      tag: p.tag,
-      type: "direct",
-      bind_interface: ifaceName,
-      "DEBUG_KEYS": Object.keys(src).join(','),
-      "DEBUG_FULL": JSON.stringify(src)
-    };
-    
-    if (/落地/i.test(p.tag)) {
-        phantomOutbound.detour = 'relay-warp';
-    }
-    regularProxies.push(phantomOutbound);
-  } else {
-    // Other node types (e.g. socks5)
-    if (/落地/i.test(p.tag)) {
-        p.detour = 'relay-common'
-    } else if (p.detour && p.detour.includes('前置')) {
-        // Strip out wrong detours from dialer-proxy
-        delete p.detour
-    }
-    regularProxies.push(p)
+// 1. Process regular outbounds (e.g. socks5) to add detour rules
+config.outbounds.forEach(p => {
+  if (/落地/i.test(p.tag) && !p.detour) {
+      p.detour = 'relay-common'
+  } else if (p.detour && p.detour.includes('前置')) {
+      // Strip out wrong detours from dialer-proxy imported as outbounds
+      delete p.detour
   }
 })
 
-// Filter out buggy natively-converted wireguard outbounds and endpoints injected by Sub-Store
-config.outbounds = config.outbounds.filter(ob => ob.type !== 'wireguard')
+// 2. Process natively parsed wireguard endpoints to inject phantom routing outbounds
+// Sub-Store 1.12 now natively converts Clash WireGuard nodes correctly to endpoints.
 if (config.endpoints) {
-  config.endpoints = config.endpoints.filter(ep => ep.type !== 'wireguard')
-} else {
-  config.endpoints = []
+  let phantomOutbounds = []
+  config.endpoints.forEach(ep => {
+    if (ep.type === 'wireguard') {
+      // Ensure it has a system interface for the phantom outbound to bind to
+      if (!ep.name) {
+        ep.name = "wg-" + Math.random().toString(36).substring(2, 6);
+      }
+      ep.system = true;
+      if (ep.detour) delete ep.detour; // detour goes strictly on outbounds
+
+      // Create a phantom Direct outbound that binds to this WireGuard interface
+      let phantomOutbound = {
+        tag: ep.tag,
+        type: "direct",
+        bind_interface: ep.name
+      };
+      
+      if (/落地/i.test(ep.tag)) {
+          phantomOutbound.detour = 'relay-warp';
+      }
+      phantomOutbounds.push(phantomOutbound);
+    }
+  })
+  config.outbounds.push(...phantomOutbounds)
 }
 
-config.outbounds.push(...regularProxies)
-config.endpoints.push(...endpointProxies)
+// Remove buggy fallback wireguard outbounds natively injected by Sub-Store (if any left)
+config.outbounds = config.outbounds.filter(ob => ob.type !== 'wireguard')
 
 config.outbounds.map(i => {
   if (['all', 'all-auto'].includes(i.tag)) {
@@ -173,11 +75,11 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i))
   }
   if (i.tag === 'exit-common') {
-    const commonProxies = regularProxies.filter(p => /落地/i.test(p.tag) && p.detour === 'relay-common')
+    const commonProxies = config.outbounds.filter(p => p.type !== 'direct' && /落地/i.test(p.tag) && p.detour === 'relay-common')
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    const warpProxies = regularProxies.filter(p => /落地/i.test(p.tag) && p.detour === 'relay-warp')
+    const warpProxies = config.outbounds.filter(p => p.type === 'direct' && /落地/i.test(p.tag) && p.detour === 'relay-warp')
     i.outbounds.push(...getTags(warpProxies))
   }
 })
