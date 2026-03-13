@@ -39,7 +39,7 @@ if (config.endpoints) {
   config.endpoints.forEach(ep => {
     if (ep.type === 'wireguard') {
       if (!ep.name) {
-        ep.name = "wg-" + Math.random().toString(36).substring(2, 6);
+        ep.name = "wg" + Math.floor(Math.random() * 9000 + 1000);
       }
       ep.system = true;
 
