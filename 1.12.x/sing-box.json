@@ -339,7 +339,7 @@
       "outbounds": [
         "direct"
       ],
-      "detour": "relay-common"
+      "default": "direct"
     },
     {
       "tag": "relay-warp",
@@ -367,7 +367,7 @@
       "outbounds": [
         "direct"
       ],
-      "detour": "relay-warp"
+      "default": "direct"
     },
     {
       "tag": "google",

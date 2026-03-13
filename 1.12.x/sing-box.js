@@ -18,16 +18,22 @@ proxies.forEach(p => {
   if (p.type === 'wireguard') {
     if (!config.endpoints) config.endpoints = [];
     p.tag = p.tag + "-ep"; // Rename endpoint to avoid collision with phantom outbound
+    // (2) wireguard 类型的节点，删除 detour
+    if (p.detour) delete p.detour;
     config.endpoints.push(p);
   } else {
+    // (3) 非 wireguard 类型的落地节点，更新为 relay-common
+    if (/落地/i.test(p.tag)) {
+        p.detour = 'relay-common';
+    } else if (p.detour && p.detour.includes('前置')) {
+        // Strip out wrong detours from dialer-proxy imported as outbounds
+        delete p.detour;
+    }
     config.outbounds.push(p);
   }
 })
 
-// 2. Process regular outbounds (e.g. socks5)
-// No detour added here anymore, will be handled at the selector group level in sing-box.json
-
-// 3. Process natively parsed wireguard endpoints to inject phantom routing outbounds
+// 2. Process natively parsed wireguard endpoints to inject phantom routing outbounds
 if (config.endpoints) {
   let phantomOutbounds = []
   config.endpoints.forEach(ep => {
@@ -42,6 +48,7 @@ if (config.endpoints) {
         type: "direct",
         bind_interface: ep.name
       };
+      // (1) phantom direct 出站不应该有 detour
       phantomOutbounds.push(phantomOutbound);
     }
   })
