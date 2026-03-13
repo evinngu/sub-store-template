@@ -17,6 +17,7 @@ let proxies = await produceArtifact({
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
     if (!config.endpoints) config.endpoints = [];
+    p.tag = p.tag + "-ep"; // Rename endpoint to avoid collision with phantom outbound
     config.endpoints.push(p);
   } else {
     config.outbounds.push(p);
@@ -33,7 +34,7 @@ config.outbounds.forEach(p => {
   }
 })
 
-// 2. Process natively parsed wireguard endpoints to inject phantom routing outbounds
+// 3. Process natively parsed wireguard endpoints to inject phantom routing outbounds
 // Sub-Store 1.12 now natively converts Clash WireGuard nodes correctly to endpoints.
 if (config.endpoints) {
   let phantomOutbounds = []
@@ -47,13 +48,14 @@ if (config.endpoints) {
       if (ep.detour) delete ep.detour; // detour goes strictly on outbounds
 
       // Create a phantom Direct outbound that binds to this WireGuard interface
+      // Use original tag (without -ep) for UI selection
       let phantomOutbound = {
-        tag: ep.tag,
+        tag: ep.tag.replace(/-ep$/, ""),
         type: "direct",
         bind_interface: ep.name
       };
       
-      if (/落地/i.test(ep.tag)) {
+      if (/落地/i.test(phantomOutbound.tag)) {
           phantomOutbound.detour = 'relay-warp';
       }
       phantomOutbounds.push(phantomOutbound);
