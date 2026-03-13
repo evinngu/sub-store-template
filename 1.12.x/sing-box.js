@@ -13,7 +13,17 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-// 1. Process regular outbounds (e.g. socks5) to add detour rules
+// 1. Distribute proxies into outbounds and endpoints
+proxies.forEach(p => {
+  if (p.type === 'wireguard') {
+    if (!config.endpoints) config.endpoints = [];
+    config.endpoints.push(p);
+  } else {
+    config.outbounds.push(p);
+  }
+})
+
+// 2. Process regular outbounds (e.g. socks5) to add detour rules
 config.outbounds.forEach(p => {
   if (/落地/i.test(p.tag) && !p.detour) {
       p.detour = 'relay-common'
