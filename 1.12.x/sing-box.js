@@ -24,42 +24,24 @@ proxies.forEach(p => {
   }
 })
 
-// 2. Process regular outbounds (e.g. socks5) to add detour rules
-config.outbounds.forEach(p => {
-  if (/落地/i.test(p.tag) && !p.detour) {
-      p.detour = 'relay-common'
-  } else if (p.detour && p.detour.includes('前置')) {
-      // Strip out wrong detours from dialer-proxy imported as outbounds
-      delete p.detour
-  }
-})
+// 2. Process regular outbounds (e.g. socks5)
+// No detour added here anymore, will be handled at the selector group level in sing-box.json
 
 // 3. Process natively parsed wireguard endpoints to inject phantom routing outbounds
-// Sub-Store 1.12 now natively converts Clash WireGuard nodes correctly to endpoints.
 if (config.endpoints) {
   let phantomOutbounds = []
   config.endpoints.forEach(ep => {
     if (ep.type === 'wireguard') {
-      // Ensure it has a system interface for the phantom outbound to bind to
       if (!ep.name) {
         ep.name = "wg-" + Math.random().toString(36).substring(2, 6);
       }
       ep.system = true;
-      ep.system = true;
 
-      // Create a phantom Direct outbound that binds to this WireGuard interface
-      // Use original tag (without -ep) for UI selection
       let phantomOutbound = {
         tag: ep.tag.replace(/-ep$/, ""),
         type: "direct",
         bind_interface: ep.name
       };
-      
-      if (/落地/i.test(phantomOutbound.tag)) {
-          ep.detour = 'relay-warp';
-          // Add a temporary marker for selector filtering
-          phantomOutbound._detour = 'relay-warp';
-      }
       phantomOutbounds.push(phantomOutbound);
     }
   })
@@ -89,11 +71,11 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i))
   }
   if (i.tag === 'exit-common') {
-    const commonProxies = config.outbounds.filter(p => p.type !== 'direct' && /落地/i.test(p.tag) && p.detour === 'relay-common')
+    const commonProxies = config.outbounds.filter(p => p.type !== 'direct' && /落地/i.test(p.tag))
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    const warpProxies = config.outbounds.filter(p => p.type === 'direct' && /落地/i.test(p.tag) && p._detour === 'relay-warp')
+    const warpProxies = config.outbounds.filter(p => p.type === 'direct' && /落地/i.test(p.tag))
     i.outbounds.push(...getTags(warpProxies))
   }
 })

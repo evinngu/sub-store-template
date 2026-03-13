@@ -338,7 +338,8 @@
       "type": "selector",
       "outbounds": [
         "direct"
-      ]
+      ],
+      "detour": "relay-common"
     },
     {
       "tag": "relay-warp",
@@ -365,7 +366,8 @@
       "type": "selector",
       "outbounds": [
         "direct"
-      ]
+      ],
+      "detour": "relay-warp"
     },
     {
       "tag": "google",
