@@ -13,50 +13,29 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-// 1. Distribute proxies into outbounds and endpoints
+// 1. Process and Distribute Proxies
 proxies.forEach(p => {
+  // Ensure internal stack for WireGuard to avoid naming/kernel issues on iOS
   if (p.type === 'wireguard') {
-    if (!config.endpoints) config.endpoints = [];
-    p.tag = p.tag + "-ep"; // Rename endpoint to avoid collision with phantom outbound
-    // (2) wireguard 类型的节点，删除 detour
-    if (p.detour) delete p.detour;
-    config.endpoints.push(p);
-  } else {
-    // (3) 非 wireguard 类型的落地节点，更新为 relay-common
-    if (/落地/i.test(p.tag)) {
-        p.detour = 'relay-common';
-    } else if (p.detour && p.detour.includes('前置')) {
-        // Strip out wrong detours from dialer-proxy imported as outbounds
-        delete p.detour;
-    }
-    config.outbounds.push(p);
+    delete p.system;
   }
+  
+  // Enforce detours for "落地" nodes based on their type
+  if (/落地/i.test(p.tag)) {
+    p.detour = (p.type === 'wireguard') ? 'relay-warp' : 'relay-common';
+  } else if (p.detour && p.detour.includes('前置')) {
+    // Cleanup incorrect detours from upstream
+    delete p.detour;
+  }
+  
+  config.outbounds.push(p);
 })
 
-// 2. Process natively parsed wireguard endpoints to inject phantom routing outbounds
-if (config.endpoints) {
-  let phantomOutbounds = []
-  config.endpoints.forEach(ep => {
-    if (ep.type === 'wireguard') {
-      if (!ep.name) {
-        ep.name = "wg" + Math.floor(Math.random() * 9000 + 1000);
-      }
+// 2. Clear native endpoints (not needed for this simplified 1:1 setup)
+config.endpoints = [];
 
-      let phantomOutbound = {
-        tag: ep.tag.replace(/-ep$/, ""),
-        type: "direct",
-        bind_interface: ep.name
-      };
-      // (1) phantom direct 出站不应该有 detour
-      phantomOutbounds.push(phantomOutbound);
-    }
-  })
-  config.outbounds.push(...phantomOutbounds)
-}
-
-// Remove buggy fallback wireguard outbounds natively injected by Sub-Store (if any left)
-config.outbounds = config.outbounds.filter(ob => ob.type !== 'wireguard')
-
+// 3. Populate Selector Groups
+// Break circular dependency: Relay groups (all, hk...) exclude landing nodes.
 config.outbounds.map(i => {
   if (['all', 'all-auto'].includes(i.tag)) {
     i.outbounds.push(...getTags(proxies, null, true))
@@ -76,18 +55,19 @@ config.outbounds.map(i => {
   if (['us', 'us-auto'].includes(i.tag)) {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i, true))
   }
+  
+  // Specific Exit Groups
   if (i.tag === 'exit-common') {
-    const commonProxies = config.outbounds.filter(p => p.type !== 'direct' && /落地/i.test(p.tag))
+    // non-wireguard landing nodes
+    const commonProxies = config.outbounds.filter(p => p.type !== 'wireguard' && p.type !== 'selector' && p.type !== 'urltest' && p.type !== 'direct' && /落地/i.test(p.tag))
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    const warpProxies = config.outbounds.filter(p => p.type === 'direct' && /落地/i.test(p.tag))
+    // wireguard landing nodes
+    const warpProxies = config.outbounds.filter(p => p.type === 'wireguard' && /落地/i.test(p.tag))
     i.outbounds.push(...getTags(warpProxies))
   }
 })
-
-// Cleanup internal markers
-config.outbounds.forEach(p => { if (p._detour) delete p._detour });
 
 config.outbounds.forEach(outbound => {
   if (Array.isArray(outbound.outbounds) && outbound.outbounds.length === 0) {
