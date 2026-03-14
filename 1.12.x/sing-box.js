@@ -72,8 +72,8 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    // 3.2.2 直接收集 WireGuard 落地节点的标签名进行填充
-    const warpProxies = config.outbounds.filter(p => 
+    // 3.2.2 直接从 endpoints 列表中收集 WireGuard 落地节点的标签名进行填充
+    const warpProxies = (config.endpoints || []).filter(p => 
       p.type === 'wireguard' && 
       /落地/i.test(p.tag)
     )
