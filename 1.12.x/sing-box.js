@@ -35,11 +35,9 @@ proxies.forEach(p => {
   }
 })
 
-// 2. 移除原先清空 endpoints 的逻辑 (现在我们需要在这里存放 WireGuard 节点)
-
-// 3. 填充策略组 (Selector Groups)
+// 2. 填充策略组 (Selector Groups)
 config.outbounds.map(i => {
-  // 3.1 中转组：标准组只包含中转节点（排除落地节点），以打破循环依赖
+  // 2.1 中转组：标准组只包含中转节点（排除落地节点），以打破循环依赖
   if (['all', 'all-auto'].includes(i.tag)) {
     i.outbounds.push(...getTags(proxies, null, true))
   }
@@ -59,9 +57,9 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i, true))
   }
   
-  // 3.2 处理落地出口组 (Exit Groups)
+  // 2.2 处理落地出口组 (Exit Groups)
   if (i.tag === 'exit-common') {
-    // 3.2.1 从出站列表中收集非 WireGuard 的普通落地节点
+    // 2.2.1 从出站列表中收集非 WireGuard 的普通落地节点
     const commonProxies = config.outbounds.filter(p => 
       p.type !== 'wireguard' && 
       p.type !== 'direct' && 
@@ -72,7 +70,7 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    // 3.2.2 直接从 endpoints 列表中收集 WireGuard 落地节点的标签名进行填充
+    // 2.2.2 直接从 endpoints 列表中收集 WireGuard 落地节点的标签名进行填充
     const warpProxies = (config.endpoints || []).filter(p => 
       p.type === 'wireguard' && 
       /落地/i.test(p.tag)
@@ -81,7 +79,7 @@ config.outbounds.map(i => {
   }
 })
 
-// 4. 处理空策略组的兼容性出站
+// 3. 处理空策略组的兼容性出站
 config.outbounds.forEach(outbound => {
   if (Array.isArray(outbound.outbounds) && outbound.outbounds.length === 0) {
     if (!compatible) {
@@ -92,7 +90,7 @@ config.outbounds.forEach(outbound => {
   }
 });
 
-// 5. 将最终配置转换为字符串内容
+// 4. 将最终配置转换为字符串内容
 $content = JSON.stringify(config, null, 2)
 
 function getTags(proxies, regex, excludeLanding = false) {
