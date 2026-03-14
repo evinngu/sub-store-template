@@ -16,16 +16,16 @@ let proxies = await produceArtifact({
 // 1. 分发代理节点到出站列表 (Outbounds)
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
-    // wireguard 类型的节点，更新 detour 为 relay-warp
+    // 1.1 wireguard 类型的节点，更新 detour 为 relay-warp
     p.detour = 'relay-warp';
-    // 确保使用内置协议栈以兼容 macOS/iOS
+    // 1.2 确保使用内置协议栈以兼容 macOS/iOS
     delete p.system;
   } else {
-    // (3) 非 wireguard 类型的落地节点，更新为 relay-common
+    // 1.3 非 wireguard 类型的落地节点，更新为 relay-common
     if (/落地/i.test(p.tag)) {
         p.detour = 'relay-common';
     } else if (p.detour && p.detour.includes('前置')) {
-        // 剔除从 dialer-proxy 导入的错误 detour 属性
+        // 1.4 剔除从 dialer-proxy 导入的错误 detour 属性
         delete p.detour;
     }
   }
@@ -37,7 +37,7 @@ config.endpoints = [];
 
 // 3. 填充策略组 (Selector Groups)
 config.outbounds.map(i => {
-  // 中转组：标准组只包含中转节点（排除落地节点），以打破循环依赖
+  // 3.1 中转组：标准组只包含中转节点（排除落地节点），以打破循环依赖
   if (['all', 'all-auto'].includes(i.tag)) {
     i.outbounds.push(...getTags(proxies, null, true))
   }
@@ -57,9 +57,9 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i, true))
   }
   
-  // 处理落地出口组 (Exit Groups)
+  // 3.2 处理落地出口组 (Exit Groups)
   if (i.tag === 'exit-common') {
-    // 从出站列表中收集非 WireGuard 的普通落地节点
+    // 3.2.1 从出站列表中收集非 WireGuard 的普通落地节点
     const commonProxies = config.outbounds.filter(p => 
       p.type !== 'wireguard' && 
       p.type !== 'direct' && 
@@ -70,7 +70,7 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    // 直接收集 WireGuard 落地节点的标签名进行填充
+    // 3.2.2 直接收集 WireGuard 落地节点的标签名进行填充
     const warpProxies = config.outbounds.filter(p => 
       p.type === 'wireguard' && 
       /落地/i.test(p.tag)
@@ -79,6 +79,7 @@ config.outbounds.map(i => {
   }
 })
 
+// 4. 处理空策略组的兼容性出站
 config.outbounds.forEach(outbound => {
   if (Array.isArray(outbound.outbounds) && outbound.outbounds.length === 0) {
     if (!compatible) {
@@ -89,6 +90,7 @@ config.outbounds.forEach(outbound => {
   }
 });
 
+// 5. 将最终配置转换为字符串内容
 $content = JSON.stringify(config, null, 2)
 
 function getTags(proxies, regex, excludeLanding = false) {
