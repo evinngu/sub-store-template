@@ -13,27 +13,29 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-// 1. 分发代理节点到出站列表 (Outbounds)
+// 1. 分发代理节点到出站列表 (Outbounds) 与端点列表 (Endpoints)
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
     // 1.1 wireguard 类型的节点，更新 detour 为 relay-warp
     p.detour = 'relay-warp';
     // 1.2 确保使用内置协议栈以兼容 macOS/iOS
     delete p.system;
+    // 1.3 将 WireGuard 节点移动到 endpoints 结构下
+    if (!config.endpoints) config.endpoints = [];
+    config.endpoints.push(p);
   } else {
-    // 1.3 非 wireguard 类型的落地节点，更新为 relay-common
+    // 1.4 非 wireguard 类型的落地节点，更新为 relay-common
     if (/落地/i.test(p.tag)) {
         p.detour = 'relay-common';
     } else if (p.detour && p.detour.includes('前置')) {
-        // 1.4 剔除从 dialer-proxy 导入的错误 detour 属性
+        // 1.5 剔除从 dialer-proxy 导入的错误 detour 属性
         delete p.detour;
     }
+    config.outbounds.push(p);
   }
-  config.outbounds.push(p);
 })
 
-// 2. 清空原生 endpoints (保持配置整洁，因为我们直接在 outbounds 中定义)
-config.endpoints = [];
+// 2. 移除原先清空 endpoints 的逻辑 (现在我们需要在这里存放 WireGuard 节点)
 
 // 3. 填充策略组 (Selector Groups)
 config.outbounds.map(i => {
