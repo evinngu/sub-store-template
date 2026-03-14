@@ -13,31 +13,31 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-// 1. Distribute proxies into outbounds
+// 1. 分发代理节点到出站列表 (Outbounds)
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
     // wireguard 类型的节点，更新 detour 为 relay-warp
     p.detour = 'relay-warp';
-    // Ensure internal stack for macOS/iOS compatibility
+    // 确保使用内置协议栈以兼容 macOS/iOS
     delete p.system;
   } else {
     // (3) 非 wireguard 类型的落地节点，更新为 relay-common
     if (/落地/i.test(p.tag)) {
         p.detour = 'relay-common';
     } else if (p.detour && p.detour.includes('前置')) {
-        // Strip out wrong detours from dialer-proxy imported as outbounds
+        // 剔除从 dialer-proxy 导入的错误 detour 属性
         delete p.detour;
     }
   }
   config.outbounds.push(p);
 })
 
-// 2. Clear native endpoints (keeping it clean since we use outbounds directly)
+// 2. 清空原生 endpoints (保持配置整洁，因为我们直接在 outbounds 中定义)
 config.endpoints = [];
 
-// 3. Populate Selector Groups
+// 3. 填充策略组 (Selector Groups)
 config.outbounds.map(i => {
-  // Relay Groups: Standard groups only contain relay nodes (non-landing) to break loops
+  // 中转组：标准组只包含中转节点（排除落地节点），以打破循环依赖
   if (['all', 'all-auto'].includes(i.tag)) {
     i.outbounds.push(...getTags(proxies, null, true))
   }
@@ -57,9 +57,9 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i, true))
   }
   
-  // Processing Exit Groups
+  // 处理落地出口组 (Exit Groups)
   if (i.tag === 'exit-common') {
-    // Collect non-wireguard landing nodes from outbounds
+    // 从出站列表中收集非 WireGuard 的普通落地节点
     const commonProxies = config.outbounds.filter(p => 
       p.type !== 'wireguard' && 
       p.type !== 'direct' && 
@@ -70,7 +70,7 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    // (Direct Tag) Collect wireguard outbounds directly
+    // 直接收集 WireGuard 落地节点的标签名进行填充
     const warpProxies = config.outbounds.filter(p => 
       p.type === 'wireguard' && 
       /落地/i.test(p.tag)
