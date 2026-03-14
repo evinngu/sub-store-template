@@ -16,8 +16,8 @@ let proxies = await produceArtifact({
 // 1. Distribute proxies into outbounds
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
-    // (2) wireguard 类型的节点，删除 detour
-    if (p.detour) delete p.detour;
+    // wireguard 类型的节点，更新 detour 为 relay-warp
+    p.detour = 'relay-warp';
     // Ensure internal stack for macOS/iOS compatibility
     delete p.system;
   } else {
