@@ -13,44 +13,27 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-// 1. Distribute proxies into outbounds and endpoints
+// 1. Distribute proxies into outbounds
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
-    if (!config.endpoints) config.endpoints = [];
-    p.tag = p.tag + "-ep"; // Rename endpoint to avoid collision with phantom outbound
-    delete p.system; // Internal stack for iOS compatibility
-    // WARP needs a detour to the relay group to connect in restricted networks
-    p.detour = "relay-warp"; 
-    config.endpoints.push(p);
+    // (2) wireguard 类型的节点，删除 detour
+    if (p.detour) delete p.detour;
+    // Ensure internal stack for macOS/iOS compatibility
+    delete p.system;
   } else {
-    // Normal landing nodes detour to relay-common (already confirmed working)
+    // (3) 非 wireguard 类型的落地节点，更新为 relay-common
     if (/落地/i.test(p.tag)) {
         p.detour = 'relay-common';
     } else if (p.detour && p.detour.includes('前置')) {
+        // Strip out wrong detours from dialer-proxy imported as outbounds
         delete p.detour;
     }
-    config.outbounds.push(p);
   }
+  config.outbounds.push(p);
 })
 
-// 2. Inject phantom routing outbounds for WireGuard UI visibility
-if (config.endpoints) {
-  let phantomOutbounds = []
-  config.endpoints.forEach(ep => {
-    if (ep.type === 'wireguard') {
-      if (!ep.name) {
-        ep.name = "wg" + Math.floor(Math.random() * 9000 + 1000);
-      }
-      let phantomOutbound = {
-        tag: ep.tag.replace(/-ep$/, ""),
-        type: "direct",
-        bind_interface: ep.name
-      };
-      phantomOutbounds.push(phantomOutbound);
-    }
-  })
-  config.outbounds.push(...phantomOutbounds)
-}
+// 2. Clear native endpoints (keeping it clean since we use outbounds directly)
+config.endpoints = [];
 
 // 3. Populate Selector Groups
 config.outbounds.map(i => {
@@ -78,6 +61,7 @@ config.outbounds.map(i => {
   if (i.tag === 'exit-common') {
     // Collect non-wireguard landing nodes from outbounds
     const commonProxies = config.outbounds.filter(p => 
+      p.type !== 'wireguard' && 
       p.type !== 'direct' && 
       p.type !== 'selector' && 
       p.type !== 'urltest' && 
@@ -86,11 +70,10 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    // Collect phantom 'direct' outbounds representing WARP
+    // (Direct Tag) Collect wireguard outbounds directly
     const warpProxies = config.outbounds.filter(p => 
-      p.type === 'direct' && 
-      /落地/i.test(p.tag) && 
-      p.bind_interface
+      p.type === 'wireguard' && 
+      /落地/i.test(p.tag)
     )
     i.outbounds.push(...getTags(warpProxies))
   }
