@@ -6,6 +6,29 @@ const compatible_outbound = {
 
 let compatible
 let config = JSON.parse($files[0])
+
+// 1. 追加自定义规则
+try {
+  let customRulesRaw = await produceArtifact({
+    type: "file",
+    name: "custom_rules.json",
+  });
+  if (customRulesRaw) {
+    let customRules = JSON.parse(customRulesRaw);
+    // 找到 clash_mode === "Global" 规则索引
+    let idx = config.route.rules.findIndex(r => r.clash_mode === "Global");
+    if (idx !== -1) {
+      const existingRulesStr = new Set(config.route.rules.map(r => JSON.stringify(r)));
+      customRules = customRules.filter(r => !existingRulesStr.has(JSON.stringify(r)));
+      config.route.rules.splice(idx + 1, 0, ...customRules);
+    } else {
+      config.route.rules.push(...customRules);
+    }
+  }
+} catch (e) {
+  // 解析或其它错误也不抛出，跳过规则插入
+}
+
 let proxies = await produceArtifact({
   name,
   type: /^1$|col/i.test(type) ? 'collection' : 'subscription',
@@ -13,31 +36,31 @@ let proxies = await produceArtifact({
   produceType: 'internal',
 })
 
-// 1. 分发代理节点到出站列表 (Outbounds) 与端点列表 (Endpoints)
+// 2. 分发代理节点到出站列表 (Outbounds) 与端点列表 (Endpoints)
 proxies.forEach(p => {
   if (p.type === 'wireguard') {
-    // 1.1 wireguard 类型的节点，更新 detour 为 relay-warp
+    // 2.1 wireguard 类型的节点，更新 detour 为 relay-warp
     p.detour = 'relay-warp';
-    // 1.2 确保使用内置协议栈以兼容 macOS/iOS
+    // 2.2 确保使用内置协议栈以兼容 macOS/iOS
     delete p.system;
-    // 1.3 将 WireGuard 节点移动到 endpoints 结构下
+    // 2.3 将 WireGuard 节点移动到 endpoints 结构下
     if (!config.endpoints) config.endpoints = [];
     config.endpoints.push(p);
   } else {
-    // 1.4 非 wireguard 类型的落地节点，更新为 relay-common
+    // 2.4 非 wireguard 类型的落地节点，更新为 relay-common
     if (/落地/i.test(p.tag)) {
         p.detour = 'relay-common';
     } else if (p.detour && p.detour.includes('前置')) {
-        // 1.5 剔除从 dialer-proxy 导入的错误 detour 属性
+        // 2.5 剔除从 dialer-proxy 导入的错误 detour 属性
         delete p.detour;
     }
     config.outbounds.push(p);
   }
 })
 
-// 2. 填充策略组 (Selector Groups)
+// 3. 填充策略组 (Selector Groups)
 config.outbounds.map(i => {
-  // 2.1 中转组：标准组只包含中转节点（排除落地节点），以打破循环依赖
+  // 3.1 中转组：标准组只包含中转节点（排除落地节点），以打破循环依赖
   if (['all', 'all-auto'].includes(i.tag)) {
     i.outbounds.push(...getTags(proxies, null, true))
   }
@@ -57,9 +80,9 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /美|us|unitedstates|united states|🇺🇸/i, true))
   }
   
-  // 2.2 处理落地出口组 (Exit Groups)
+  // 3.2 处理落地出口组 (Exit Groups)
   if (i.tag === 'exit-common') {
-    // 2.2.1 从出站列表中收集非 WireGuard 的普通落地节点
+    // 3.2.1 从出站列表中收集非 WireGuard 的普通落地节点
     const commonProxies = config.outbounds.filter(p => 
       p.type !== 'wireguard' && 
       p.type !== 'direct' && 
@@ -70,7 +93,7 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(commonProxies))
   }
   if (i.tag === 'exit-warp') {
-    // 2.2.2 直接从 endpoints 列表中收集 WireGuard 落地节点的标签名进行填充
+    // 3.2.2 直接从 endpoints 列表中收集 WireGuard 落地节点的标签名进行填充
     const warpProxies = (config.endpoints || []).filter(p => 
       p.type === 'wireguard' && 
       /落地/i.test(p.tag)
@@ -79,7 +102,7 @@ config.outbounds.map(i => {
   }
 })
 
-// 3. 处理空策略组的兼容性出站
+// 4. 处理空策略组的兼容性出站
 config.outbounds.forEach(outbound => {
   if (Array.isArray(outbound.outbounds) && outbound.outbounds.length === 0) {
     if (!compatible) {
@@ -90,7 +113,7 @@ config.outbounds.forEach(outbound => {
   }
 });
 
-// 4. 将最终配置转换为字符串内容
+// 5. 将最终配置转换为字符串内容
 $content = JSON.stringify(config, null, 2)
 
 function getTags(proxies, regex, excludeLanding = false) {
