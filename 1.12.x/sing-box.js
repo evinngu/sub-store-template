@@ -15,8 +15,8 @@ try {
   });
   if (customRulesRaw) {
     let customRulesObj = JSON.parse(customRulesRaw);
-    let customRules = Array.isArray(customRulesObj) ? customRulesObj : (customRulesObj.rules || []);
-    let customRuleSets = Array.isArray(customRulesObj) ? [] : (customRulesObj.rule_set || []);
+    let customRules = customRulesObj.rules || [];
+    let customRuleSets = customRulesObj.rule_set || [];
 
     // 1.1 找到 clash_mode === "Global" 规则索引并插入 rules
     if (customRules.length > 0) {
