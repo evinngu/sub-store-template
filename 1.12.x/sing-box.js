@@ -14,15 +14,28 @@ try {
     name: "custom_rules.json",
   });
   if (customRulesRaw) {
-    let customRules = JSON.parse(customRulesRaw);
-    // 找到 clash_mode === "Global" 规则索引
-    let idx = config.route.rules.findIndex(r => r.clash_mode === "Global");
-    if (idx !== -1) {
-      const existingRulesStr = new Set(config.route.rules.map(r => JSON.stringify(r)));
-      customRules = customRules.filter(r => !existingRulesStr.has(JSON.stringify(r)));
-      config.route.rules.splice(idx + 1, 0, ...customRules);
-    } else {
-      config.route.rules.push(...customRules);
+    let customRulesObj = JSON.parse(customRulesRaw);
+    let customRules = Array.isArray(customRulesObj) ? customRulesObj : (customRulesObj.rules || []);
+    let customRuleSets = Array.isArray(customRulesObj) ? [] : (customRulesObj.rule_set || []);
+
+    // 1.1 找到 clash_mode === "Global" 规则索引并插入 rules
+    if (customRules.length > 0) {
+      let idx = config.route.rules.findIndex(r => r.clash_mode === "Global");
+      if (idx !== -1) {
+        const existingRulesStr = new Set(config.route.rules.map(r => JSON.stringify(r)));
+        customRules = customRules.filter(r => !existingRulesStr.has(JSON.stringify(r)));
+        config.route.rules.splice(idx + 1, 0, ...customRules);
+      } else {
+        config.route.rules.push(...customRules);
+      }
+    }
+
+    // 1.2 追加 rule_set 到 route.rule_set 末尾
+    if (customRuleSets.length > 0) {
+      if (!config.route.rule_set) config.route.rule_set = [];
+      const existingRuleSetsStr = new Set(config.route.rule_set.map(r => JSON.stringify(r)));
+      customRuleSets = customRuleSets.filter(r => !existingRuleSetsStr.has(JSON.stringify(r)));
+      config.route.rule_set.push(...customRuleSets);
     }
   }
 } catch (e) {
