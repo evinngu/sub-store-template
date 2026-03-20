@@ -386,7 +386,9 @@
         "us",
         "us-auto",
         "all",
-        "all-auto"
+        "all-auto",
+        "exit-common",
+        "exit-warp"
       ],
       "default": "proxy"
     },
@@ -470,7 +472,9 @@
         "us",
         "us-auto",
         "all",
-        "all-auto"
+        "all-auto",
+        "exit-common",
+        "exit-warp"
       ],
       "default": "proxy"
     },
@@ -512,7 +516,9 @@
         "us",
         "us-auto",
         "all",
-        "all-auto"
+        "all-auto",
+        "exit-common",
+        "exit-warp"
       ],
       "default": "proxy"
     },
@@ -533,7 +539,9 @@
         "us",
         "us-auto",
         "all",
-        "all-auto"
+        "all-auto",
+        "exit-common",
+        "exit-warp"
       ],
       "default": "proxy"
     },
