@@ -15,8 +15,9 @@ try {
   });
   if (customRulesRaw) {
     let customRulesObj = JSON.parse(customRulesRaw);
-    let customRules = customRulesObj.rules || [];
-    let customRuleSets = customRulesObj.rule_set || [];
+    let customRoute = customRulesObj.route || {};
+    let customRules = customRoute.rules || [];
+    let customRuleSets = customRoute.rule_set || [];
 
     // 1.1 找到 clash_mode === "Global" 规则索引并插入 rules
     if (customRules.length > 0) {
@@ -36,6 +37,29 @@ try {
       const existingRuleSetsStr = new Set(config.route.rule_set.map(r => JSON.stringify(r)));
       customRuleSets = customRuleSets.filter(r => !existingRuleSetsStr.has(JSON.stringify(r)));
       config.route.rule_set.push(...customRuleSets);
+    }
+
+    // 解析 dns 部分
+    let customDns = customRulesObj.dns || {};
+    let customDnsServers = customDns.servers || [];
+    let customDnsRules = customDns.rules || [];
+
+    // 1.3 追加 dns.servers 到末尾
+    if (customDnsServers.length > 0) {
+      if (!config.dns) config.dns = {};
+      if (!config.dns.servers) config.dns.servers = [];
+      const existingDnsServersStr = new Set(config.dns.servers.map(s => JSON.stringify(s)));
+      customDnsServers = customDnsServers.filter(s => !existingDnsServersStr.has(JSON.stringify(s)));
+      config.dns.servers.push(...customDnsServers);
+    }
+
+    // 1.4 追加 dns.rules 到最前
+    if (customDnsRules.length > 0) {
+      if (!config.dns) config.dns = {};
+      if (!config.dns.rules) config.dns.rules = [];
+      const existingDnsRulesStr = new Set(config.dns.rules.map(r => JSON.stringify(r)));
+      customDnsRules = customDnsRules.filter(r => !existingDnsRulesStr.has(JSON.stringify(r)));
+      config.dns.rules.unshift(...customDnsRules);
     }
   }
 } catch (e) {
