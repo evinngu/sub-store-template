@@ -1,5 +1,5 @@
 const { type, name } = $arguments
-const compatible_outbound = {
+const compatibleOutbound = {
   tag: 'COMPATIBLE',
   type: 'direct',
 }
@@ -23,8 +23,8 @@ try {
     if (customRouteRules.length > 0) {
       let idx = config.route.rules.findIndex(r => r.clash_mode === "Global");
       if (idx !== -1) {
-        const existingRulesStr = new Set(config.route.rules.map(r => JSON.stringify(r)));
-        customRouteRules = customRouteRules.filter(r => !existingRulesStr.has(JSON.stringify(r)));
+        const existingRouteRulesStr = new Set(config.route.rules.map(r => JSON.stringify(r)));
+        customRouteRules = customRouteRules.filter(r => !existingRouteRulesStr.has(JSON.stringify(r)));
         config.route.rules.splice(idx + 1, 0, ...customRouteRules);
       } else {
         config.route.rules.push(...customRouteRules);
@@ -34,8 +34,8 @@ try {
     // 1.2 追加 route.rule_set 到末尾
     if (customRouteRuleSets.length > 0) {
       if (!config.route.rule_set) config.route.rule_set = [];
-      const existingRuleSetsStr = new Set(config.route.rule_set.map(r => JSON.stringify(r)));
-      customRouteRuleSets = customRouteRuleSets.filter(r => !existingRuleSetsStr.has(JSON.stringify(r)));
+      const existingRouteRuleSetsStr = new Set(config.route.rule_set.map(r => JSON.stringify(r)));
+      customRouteRuleSets = customRouteRuleSets.filter(r => !existingRouteRuleSetsStr.has(JSON.stringify(r)));
       config.route.rule_set.push(...customRouteRuleSets);
     }
 
@@ -143,10 +143,10 @@ config.outbounds.map(i => {
 config.outbounds.forEach(outbound => {
   if (Array.isArray(outbound.outbounds) && outbound.outbounds.length === 0) {
     if (!compatible) {
-      config.outbounds.push(compatible_outbound)
+      config.outbounds.push(compatibleOutbound)
       compatible = true
     }
-    outbound.outbounds.push(compatible_outbound.tag);
+    outbound.outbounds.push(compatibleOutbound.tag);
   }
 });
 
