@@ -16,27 +16,27 @@ try {
   if (customRulesRaw) {
     let customRulesObj = JSON.parse(customRulesRaw);
     let customRoute = customRulesObj.route || {};
-    let customRules = customRoute.rules || [];
-    let customRuleSets = customRoute.rule_set || [];
+    let customRouteRules = customRoute.rules || [];
+    let customRouteRuleSets = customRoute.rule_set || [];
 
-    // 1.1 找到 clash_mode === "Global" 规则索引并插入 rules
-    if (customRules.length > 0) {
+    // 1.1 追加 route.rules 到 clash_mode === "Global" 之后
+    if (customRouteRules.length > 0) {
       let idx = config.route.rules.findIndex(r => r.clash_mode === "Global");
       if (idx !== -1) {
         const existingRulesStr = new Set(config.route.rules.map(r => JSON.stringify(r)));
-        customRules = customRules.filter(r => !existingRulesStr.has(JSON.stringify(r)));
-        config.route.rules.splice(idx + 1, 0, ...customRules);
+        customRouteRules = customRouteRules.filter(r => !existingRulesStr.has(JSON.stringify(r)));
+        config.route.rules.splice(idx + 1, 0, ...customRouteRules);
       } else {
-        config.route.rules.push(...customRules);
+        config.route.rules.push(...customRouteRules);
       }
     }
 
-    // 1.2 追加 rule_set 到 route.rule_set 末尾
-    if (customRuleSets.length > 0) {
+    // 1.2 追加 route.rule_set 到末尾
+    if (customRouteRuleSets.length > 0) {
       if (!config.route.rule_set) config.route.rule_set = [];
       const existingRuleSetsStr = new Set(config.route.rule_set.map(r => JSON.stringify(r)));
-      customRuleSets = customRuleSets.filter(r => !existingRuleSetsStr.has(JSON.stringify(r)));
-      config.route.rule_set.push(...customRuleSets);
+      customRouteRuleSets = customRouteRuleSets.filter(r => !existingRuleSetsStr.has(JSON.stringify(r)));
+      config.route.rule_set.push(...customRouteRuleSets);
     }
 
     // 解析 dns 部分
