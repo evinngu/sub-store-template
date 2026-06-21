@@ -114,7 +114,7 @@ config.outbounds.map(i => {
     i.outbounds.push(...getTags(proxies, /^(?!.*(?:us|新西兰|nz)).*(新|sg|singapore|🇸🇬)/i, true))
   }
   if (['us', 'us-auto'].includes(i.tag)) {
-    i.outbounds.push(...getTags(proxies, /美|美国|US|USA|unitedstates|united states|🇺🇸/i, true))
+    i.outbounds.push(...getTags(proxies, /(?i)^(?=.*(?:美|美国|\bUS\b|\bUSA\b|unitedstates|united states|🇺🇸)).*/i, true))
   }
   
   // 3.2 处理落地出口组 (Exit Groups)
