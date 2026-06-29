@@ -1,4 +1,20 @@
 {
+  "services": [
+    {
+      "type": "api",
+      "tag": "api",
+      "listen": "127.0.0.1",
+      "listen_port": 9091,
+      "secret": "",
+      "dashboard": {
+        "enabled": true,
+        "path": "ui",
+        "download_url": "https://ghfast.top/https://github.com/SagerNet/sing-box-dashboard/archive/refs/heads/gh-pages.zip",
+        "http_client": "direct",
+        "update_interval": "1d"
+      }
+    }
+  ],
   "http_clients": [
     {
       "tag": "direct",
